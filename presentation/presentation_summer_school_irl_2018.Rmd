@@ -1,0 +1,224 @@
+---
+title: "Контент-анализ новостей, связанных с наркотическими преступлениями правоохранителей"
+subtitle: "Предварительные результаты"
+author: "Алексей Кнорре, Анастасия Косачёва"
+date: "21 июня 2018"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+source("C:/Users/Alexey/Dropbox/R/table_output/table_output.R")
+library(knitr)
+library(kableExtra)
+df <- read.csv2("../data/data_clean.csv", stringsAsFactors = F)
+```
+# План
+  
+--
+
+- исследовательская идея и прагматика исследования
+
+--
+
+- теория и существующие исследования
+
+--
+
+- гипотезы
+
+--
+
+- результаты
+
+--
+
+- обсуждение
+
+---
+
+# Идея и прагматика исследования
+
+- мы сделали несколько исследований про наркопреступления (аналитическая записка про МВД и ФСКН; криминальная и судебная статистика наркотиков и эффект массы на значительном и крупном размере; взятки полицейским)
+
+--
+
+- другой фокус: как преступления с наркотиками, совершенные правоохранителями, освещаются в СМИ?
+
+--
+
+- прагматика: задача репликации исследования (Stinson et al, 2012) на российских данных для практикантов
+
+---
+
+background-image: url(stinson.png)
+
+Stinson, Philip, John Liederbach, Steven Brewer, Hans Schmalzried, Brooke Mathna, and Krista Long. “A Study of Drug-Related Police Corruption Arrests.” Policing: An International Journal of Police Strategies & Management, January 1, 2013, 491–511. https://doi.org/doi:10.1108/PIJPSM-06-2012-0051.  
+
+---
+# Теоретический дебат
+
+- полицейская коррупция: индивидуальное vs институциональное объяснение
+
+--
+
+- победило институциональное: фактор групповой солидарности и профессиональной социализации
+
+- особый риск при борьбе с наркотиками: использование насилия, тесные контакты с информантами, серая зона (ОРД)
+
+--
+
+- Дэвид Картер: два типа полицейской коррупции
+  - нелегитимный (плохие цели и плохие средства, например, обогащение)
+  - легитимный (благие цели, плохие средства, например, стремление посадить этого парня, ведь он точно наркоман)
+
+---
+# Гипотезы из Stinson et al., 2012
+
+- чем крупнее правоохранительное ведомство, тем ниже вероятность санкций для офицера полиции
+
+- чем старше офицер, тем ниже вероятность санкций
+
+- если офицер при исполнении, выше риск санкций
+
+## Описательные задачи
+
+- какие приблизительно масштабы полицейской преступности, связанной с наркотиками в России, представлены в российских СМИ?
+
+- какие преступления сопутствуют наркопреступлениям полицейских?
+
+- какие стратегии санкционирования избираются в отношении полицейских? 
+
+- связаны ли избранные санкции с характеристиками полицейских?
+
+---
+
+# Результаты
+
+100 запросов вида:
+1.	Капитан задержан ст!т 228
+2.	сотрудник полиции :0 обвинен и наркотики 
+3.	Генерал задержан ст!т 286 наркотики
+4.	полицейского задержали за хранение наркотиков
+5.	полицейского!т :0 поймали!т И наркотики
+6.	наркополицейский повышение показателей
+7.	сотрудник!т :0 полиции!т :0 задержан!т И наркотики 
+
+--
+
+567 наблюдений (каждое наблюдение -- сотрудник правоохранительных органов)
+
+---
+
+background-image: url(missings.png)
+background-size: cover
+---
+
+## Регионы
+
+```{r echo=FALSE}
+freqtab(df$agency_geo_region, 15) %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Ведомства
+
+```{r echo=FALSE}
+freqtab(df$agency_crime) %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Ведомства против других ведомств
+
+```{r echo=FALSE}
+freqtab(df$agency_catcher, 7) %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Ведомства против других ведомств
+
+```{r echo=FALSE}
+crosstab(df$agency_crime, df$agency_catcher, 7, 7)$Columns_percentages %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+  
+crosstab(df$agency_crime, df$agency_catcher, 7, 7)$Frequencies %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Должность
+
+```{r echo=FALSE}
+freqtab(df$position, 10) %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Изъятые наркотики
+
+```{r echo=FALSE}
+freqtab(df$drugs_seized_1, 7) %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Наркотические предпочтения правоохранителей
+
+```{r echo=FALSE}
+crosstab(df$agency_crime, df$drugs_seized_1, 10, 7)$Rows_percentages %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+---
+
+## Санкции
+
+```{r echo=FALSE}
+freqtab(df$sanction, 10) %>% 
+  kable(format = "html",
+        format.args = list(decimal.mark = ',', big.mark = " ")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+```
+
+
+
+---
+
+# Обсуждение
+
+- качество данных: имеет ли смысл что-то делать дальше?
+
+--
+
+- если имеет, то в какую сторону: что может быть наиболее ценным результатом?
