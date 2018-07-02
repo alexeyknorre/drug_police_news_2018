@@ -70,6 +70,12 @@ publishers$publisher[grepl("Коммерсант",publishers$publisher)] <- "К�
 publishers$publisher[grepl("РБК|RBC|РосБизнесКонсалтинг",publishers$publisher)] <- "РБК"
 publishers$publisher[grepl("Московский комсомолец|Московский Комсомолец|МК", publishers$publisher)] <- "МК"
 
+library(stringr)
+publishers$publisher[str_detect(publishers$publisher, "Вечерний Ставрополь")] <- "Вечерний Ставрополь"
+publishers$publisher[str_detect(publishers$publisher, "Йошкар-Ола")] <- "Йошкар-Ола"
+publishers$publisher[str_detect(publishers$publisher, "Невское время")] <- "Невское время"
+publishers$publisher[str_detect(publishers$publisher, "ИНТЕР|Интер")] <- "Интер"
+
 ### ###
 # Check publishers_count to see what should be cleaned
 
