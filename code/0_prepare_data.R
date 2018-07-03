@@ -119,6 +119,53 @@ df$is_justification[str_detect(df$sanction, "оправд")] <- 1
 df$is_house_arrest[str_detect(df$sanction, "подп")] <- 1
 df$is_detention[str_detect(df$sanction, "страж|задер|арест")] <- 1
 
+### Type of media ###
+
+library(tidyr)
+new4 <- unnest(df, publisher = strsplit(publisher, ";"))
+
+new4$publisher <- tolower(new4$publisher)
+new4$publisher <- gsub(' (pdf-версия)', '', new4$publisher, fixed = TRUE)
+new4$publisher <- gsub('(московский выпуск, pdf)', '(Москва)', new4$publisher, fixed = TRUE)
+new4$publisher <- gsub('риа "росбизнесконсалтинг" казань и татарстан', 'рбк. татарстан (rt.rbc.ru)', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('риа "росбизнесконсалтинг" нижний новгород', 'рбк. нижний новгород (nn.rbc.ru)', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('риа "росбизнесконсалтинг" новосибирск и сибирь', 'рбк. новосибирск (nsk.rbc.ru)', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('известия (московский выпуск)', 'известия', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('вечерка (томск)', 'вечерка thebest (томск)', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('московский комсомолец', 'мк', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('коммерсант', 'коммерсантъ', new4$publisher, fixed = TRUE) 
+new4$publisher <- gsub('rbc news', 'рбк. rbc news', new4$publisher, fixed = TRUE) 
+
+library(readr)
+allsources <- read_delim("data/allsources.csv", 
+                         ";", escape_double = FALSE, trim_ws = TRUE)
+allsources$name <- tolower(allsources$name)
+allsources$name <- gsub(" (pdf-версия)", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(" (pdf версия)", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(" (архив)", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(" архив", "", allsources$name, fixed = TRUE)
+new4$type <- NA
+for(i in 1:3514){
+  new4$type[str_detect(new4$publisher,allsources$name[i])] <- allsources$type[i]
+}
+
+sum(is.na(new4$type))
+unique(new4$publisher[is.na(new4$type)])
+new4$type[is.na(new4$type)] <- "region"
+new4$fed_arch <- 0
+new4$fed <- 0
+new4$fed_int <- 0
+new4$region <- 0
+new4$region_arch <- 0
+new4$fed_arch[new4$type == "fed arch"] <- 1
+new4$fed[new4$type == "fed"] <- 1
+new4$fed_int[new4$type == "fed int"] <- 1
+new4$region[new4$type == "region"] <- 1
+new4$region_arch[new4$type == "region arch"] <- 1
+types <- select(new4, N, fed, fed_int, fed_arch, region, region_arch)
+types <- aggregate(. ~ N, types, sum)
+df <- merge(df, types)
+
 ### Articles from Criminal Code ####
 # TODO
 
