@@ -169,5 +169,14 @@ df <- merge(df, types)
 ### Articles from Criminal Code ####
 # TODO
 
+library(dplyr)
+library(tidyr)
+library(stringr)
+
+df$articles <- gsub(',', ';', df$articles)
+new <- unnest(df, articles = strsplit(articles, ";"))
+new$articles <- gsub(' ', '', new$articles)
+length(unique(new$articles)) # 79 unique articles 
+
 # Export data
 write.csv2(df, "data/data_clean.csv",row.names = F)
