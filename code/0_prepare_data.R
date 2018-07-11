@@ -172,6 +172,9 @@ df <- merge(df, types)
 library(dplyr)
 library(tidyr)
 library(stringr)
+# There are some mistakes
+df$articles[18] <- "300003; 1590003"
+df$articles[19] <- "300003; 1590003"
 
 df$articles <- gsub(',', ';', df$articles)
 new <- unnest(df, articles = strsplit(articles, ";"))
