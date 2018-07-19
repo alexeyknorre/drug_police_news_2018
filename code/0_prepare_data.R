@@ -1,11 +1,10 @@
-library(ggplot2)
 library(readr)
 library(splitstackshape)
 library(dplyr)
+library(stringr)
+library(tidyr)
 
 df <- read_csv("data/data_30.06.2018.csv")
-
-source("C:/Users/Alexey/Dropbox/R/table_output/table_output.R")
 
 ## Data cleaning
 
@@ -70,7 +69,6 @@ publishers$publisher[grepl("Коммерсант",publishers$publisher)] <- "К�
 publishers$publisher[grepl("РБК|RBC|РосБизнесКонсалтинг",publishers$publisher)] <- "РБК"
 publishers$publisher[grepl("Московский комсомолец|Московский Комсомолец|МК", publishers$publisher)] <- "МК"
 
-library(stringr)
 publishers$publisher[str_detect(publishers$publisher, "Вечерний Ставрополь")] <- "Вечерний Ставрополь"
 publishers$publisher[str_detect(publishers$publisher, "Йошкар-Ола")] <- "Йошкар-Ола"
 publishers$publisher[str_detect(publishers$publisher, "Невское время")] <- "Невское время"
@@ -94,9 +92,9 @@ publishers$publisher[publishers$publisher == "Комсомольская пра�
 publishers$publisher[publishers$publisher == "Арсеньевские вести "] <- "Арсеньевские вести"
 
 ### ###
-# Check publishers_count to see what should be cleaned
+# Counts publishers
 
-publishers_count <- publishers %>% 
+publishers <- publishers %>% 
   group_by(publisher) %>% 
   summarise(count = sum(count)) %>% 
   arrange(desc(count))
@@ -121,7 +119,7 @@ df$is_detention[str_detect(df$sanction, "страж|задер|арест")] <- 
 
 ### Type of media ###
 
-library(tidyr)
+# AK: please, avoid naming objects like 'new4'. Name should be semantically useful -- like 'df_long_publishers'.
 new4 <- unnest(df, publisher = strsplit(publisher, ";"))
 
 new4$publisher <- tolower(new4$publisher)
@@ -136,7 +134,7 @@ new4$publisher <- gsub('московский комсомолец', 'мк', new4
 new4$publisher <- gsub('коммерсант', 'коммерсантъ', new4$publisher, fixed = TRUE) 
 new4$publisher <- gsub('rbc news', 'рбк. rbc news', new4$publisher, fixed = TRUE) 
 
-library(readr)
+
 allsources <- read_delim("data/allsources.csv", 
                          ";", escape_double = FALSE, trim_ws = TRUE)
 allsources$name <- tolower(allsources$name)
@@ -145,12 +143,19 @@ allsources$name <- gsub(" (pdf версия)", "", allsources$name, fixed = TRUE
 allsources$name <- gsub(" (архив)", "", allsources$name, fixed = TRUE)
 allsources$name <- gsub(" архив", "", allsources$name, fixed = TRUE)
 new4$type <- NA
-for(i in 1:3514){
+
+# AK: avoid using numbers as endpoints in cycles. It's better with nrow/length -- so you code will be more reusable and clear.
+#for(i in 1:3514){
+for(i in 1:nrow(allsources)){
   new4$type[str_detect(new4$publisher,allsources$name[i])] <- allsources$type[i]
 }
 
+# AK: These two lines should be moved into 1_analysis.r
+# also don't be shy to add comments to tell what these numbers mean
 sum(is.na(new4$type))
 unique(new4$publisher[is.na(new4$type)])
+
+# AK: what are 'fed arch', 'fed', 'fed int' and so on? Again, in future write it here, in comments. 
 new4$type[is.na(new4$type)] <- "region"
 new4$fed_arch <- 0
 new4$fed <- 0
@@ -166,20 +171,20 @@ types <- select(new4, N, fed, fed_int, fed_arch, region, region_arch)
 types <- aggregate(. ~ N, types, sum)
 df <- merge(df, types)
 
-### Articles from Criminal Code ####
-# TODO
+# AK: good practice is to delete unnecessary objects from memory:
+rm(list = c("new4","types","allsources", "i"))
 
-library(dplyr)
-library(tidyr)
-library(stringr)
+### Articles from Criminal Code ####
+
 # There are some mistakes
 df$articles[18] <- "300003; 1590003"
 df$articles[19] <- "300003; 1590003"
 
 df$articles <- gsub(',', ';', df$articles)
-new <- unnest(df, articles = strsplit(articles, ";"))
-new$articles <- gsub(' ', '', new$articles)
-length(unique(new$articles)) # 79 unique articles 
+df_long_articles <- unnest(df, articles = strsplit(articles, ";"))
+df_long_articles$articles <- gsub('\n| ', '', df_long_articles$articles)
+df_long_articles$articles_short <- substr(df_long_articles$articles, 0, 3)
 
 # Export data
-write.csv2(df, "data/data_clean.csv",row.names = F)
+save(df_long_articles, df, publishers, file = "data/data_clean.RData")
+#write.csv2(df, "data/data_clean.csv", row.names = F)
