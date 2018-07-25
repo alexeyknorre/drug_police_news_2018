@@ -8,6 +8,23 @@ df <- read_csv("data/data_30.06.2018.csv")
 
 ## Data cleaning
 
+# There are some mistakes
+df$articles[18] <- "300003; 1590003"
+df$articles[19] <- "300003; 1590003"
+df$articles[458] <- "2900003; 2860001"
+df$articles[345] <- "2280001; 300001"
+df$summary_crime[133] <- "Избиение потенциального наркопреступника"
+df$summary_crime[134] <- "Подброс и хранение наркотиков"
+df$summary_crime[135] <- "Фальсификация доказательств преступления"
+df$summary_crime[136] <- "Фальсификация преступления"
+df$drugs_seized_1[134] <- "амфетамин"
+df$drugs_seized_weight_1[134] <- "5,5"
+df$drugs_seized_2[134] <- "хлорфенилпиперазин"
+df$drugs_seized_weight_2[134] <- "2,7"
+df$drugs_seized_1[133] <- NA
+df$drugs_seized_weight_1[133] <- NA
+df$drugs_seized_2[133] <- NA
+
 ### Agencies ####
 df$agency_crime[df$agency_crime %in% c("ОМВД","ОМОН")] <- "МВД"
 df$agency_crime[df$agency_crime %in% c("УФСКН")] <- "ФСКН"
@@ -18,8 +35,19 @@ df$agency_catcher[df$agency_catcher %in% c("УФСКН")] <- "ФСКН"
 df$agency_catcher[df$agency_catcher %in% c("УФСБ")] <- "ФСБ"
 
 ### Drugs ####
+df$drugs_seized_1 <- gsub('"', '',df$drugs_seized_1)
+df$drugs_seized_1 <- gsub('матамфетамин', 'метамфетамин',df$drugs_seized_1)
+df$drugs_seized_1 <- gsub('героина', 'героин',df$drugs_seized_1)
+df$drugs_seized_1 <- gsub('курительные смеси', 'курительная смесь',df$drugs_seized_1)
+df$drugs_seized_2 <- gsub('"', '',df$drugs_seized_2)
+df$drugs_seized_2 <- gsub('курительные смеси', 'курительная смесь',df$drugs_seized_2)
 df$drugs_seized_1[df$drugs_seized_1 %in% c("марихуана","гашиш", "конопля","каннабис","мариухана",
-                                           "каннабиноид", "каннабиноиды")] <- "каннабиоиды"
+                                           "каннабиноид", "каннабиноиды")] <- "каннабиноиды"
+df$drugs_seized_2[df$drugs_seized_2 %in% c("марихуана","гашиш", "конопля","каннабис","мариухана",
+                                           "каннабиноид", "каннабиноиды", "масло каннабиса")] <- "каннабиноиды"
+df$drugs_seized_weight_1 <- as.numeric(format(df$drugs_seized_weight_1, decimal.mark=","))
+df$drugs_seized_weight_2 <- as.numeric(format(df$drugs_seized_weight_2, decimal.mark=","))
+
 
 ### Regions ####
 df$agency_geo_region[df$agency_geo_region == "Кабардино-Балкарская республика"] <- "Кабардино-Балкарская Республика"
@@ -120,19 +148,19 @@ df$is_detention[str_detect(df$sanction, "страж|задер|арест")] <- 
 ### Type of media ###
 
 # AK: please, avoid naming objects like 'new4'. Name should be semantically useful -- like 'df_long_publishers'.
-new4 <- unnest(df, publisher = strsplit(publisher, ";"))
+df_long_publishers <- unnest(df, publisher = strsplit(publisher, ";"))
 
-new4$publisher <- tolower(new4$publisher)
-new4$publisher <- gsub(' (pdf-версия)', '', new4$publisher, fixed = TRUE)
-new4$publisher <- gsub('(московский выпуск, pdf)', '(Москва)', new4$publisher, fixed = TRUE)
-new4$publisher <- gsub('риа "росбизнесконсалтинг" казань и татарстан', 'рбк. татарстан (rt.rbc.ru)', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('риа "росбизнесконсалтинг" нижний новгород', 'рбк. нижний новгород (nn.rbc.ru)', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('риа "росбизнесконсалтинг" новосибирск и сибирь', 'рбк. новосибирск (nsk.rbc.ru)', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('известия (московский выпуск)', 'известия', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('вечерка (томск)', 'вечерка thebest (томск)', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('московский комсомолец', 'мк', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('коммерсант', 'коммерсантъ', new4$publisher, fixed = TRUE) 
-new4$publisher <- gsub('rbc news', 'рбк. rbc news', new4$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- tolower(df_long_publishers$publisher)
+df_long_publishers$publisher <- gsub(' (pdf-версия)', '', df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub('(московский выпуск, pdf)', '(Москва)', df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub('риа "росбизнесконсалтинг" казань и татарстан', 'рбк. татарстан (rt.rbc.ru)', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('риа "росбизнесконсалтинг" нижний новгород', 'рбк. нижний новгород (nn.rbc.ru)', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('риа "росбизнесконсалтинг" новосибирск и сибирь', 'рбк. новосибирск (nsk.rbc.ru)', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('известия (московский выпуск)', 'известия', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('вечерка (томск)', 'вечерка thebest (томск)', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('московский комсомолец', 'мк', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('коммерсант', 'коммерсантъ', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('rbc news', 'рбк. rbc news', df_long_publishers$publisher, fixed = TRUE) 
 
 
 allsources <- read_delim("data/allsources.csv", 
@@ -142,49 +170,57 @@ allsources$name <- gsub(" (pdf-версия)", "", allsources$name, fixed = TRUE
 allsources$name <- gsub(" (pdf версия)", "", allsources$name, fixed = TRUE)
 allsources$name <- gsub(" (архив)", "", allsources$name, fixed = TRUE)
 allsources$name <- gsub(" архив", "", allsources$name, fixed = TRUE)
-new4$type <- NA
+df_long_publishers$type <- NA
 
 # AK: avoid using numbers as endpoints in cycles. It's better with nrow/length -- so you code will be more reusable and clear.
 #for(i in 1:3514){
 for(i in 1:nrow(allsources)){
-  new4$type[str_detect(new4$publisher,allsources$name[i])] <- allsources$type[i]
+  df_long_publishers$type[str_detect(df_long_publishers$publisher,allsources$name[i])] <- allsources$type[i]
 }
 
-# AK: These two lines should be moved into 1_analysis.r
-# also don't be shy to add comments to tell what these numbers mean
-sum(is.na(new4$type))
-unique(new4$publisher[is.na(new4$type)])
 
-# AK: what are 'fed arch', 'fed', 'fed int' and so on? Again, in future write it here, in comments. 
-new4$type[is.na(new4$type)] <- "region"
-new4$fed_arch <- 0
-new4$fed <- 0
-new4$fed_int <- 0
-new4$region <- 0
-new4$region_arch <- 0
-new4$fed_arch[new4$type == "fed arch"] <- 1
-new4$fed[new4$type == "fed"] <- 1
-new4$fed_int[new4$type == "fed int"] <- 1
-new4$region[new4$type == "region"] <- 1
-new4$region_arch[new4$type == "region arch"] <- 1
-types <- select(new4, N, fed, fed_int, fed_arch, region, region_arch)
+# AK: what are 'fed arch', 'fed', 'fed int' and so on? Again, in future write it here, in comments.
+
+# There are 6 types of media: federal print ("fed"), regional print ("region"), federal Internet ("fed int"), regional Internet ("region int"), federal archive ("fed arch") and regional archive ("region arch").
+# Archive types refer to the media that is no longer publishing.
+
+df_long_publishers$type[is.na(df_long_publishers$type)] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == " северо-запад (санкт-петербург)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "северо-запад (санкт-петербург)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "комсомолец каспия (астрахань)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "красный север (салехард)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "невское время (санкт-петербург)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "наше время (ростов-на-дону)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "центр (ижевск)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "новгород (великий новгород)"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "\"своими именами\""] <- "fed arch"
+df_long_publishers$type[df_long_publishers$publisher == "моё! online воронеж (moe-online.ru)"] <- "region int"
+df_long_publishers$type[df_long_publishers$publisher == "интер (волгоград) (inter-volgograd.ru)"] <- "region int"
+
+df_long_publishers$fed_arch <- 0
+df_long_publishers$fed <- 0
+df_long_publishers$fed_int <- 0
+df_long_publishers$region <- 0
+df_long_publishers$region_arch <- 0
+df_long_publishers$fed_arch[df_long_publishers$type == "fed arch"] <- 1
+df_long_publishers$fed[df_long_publishers$type == "fed"] <- 1
+df_long_publishers$fed_int[df_long_publishers$type == "fed int"] <- 1
+df_long_publishers$region[df_long_publishers$type == "region"] <- 1
+df_long_publishers$region_arch[df_long_publishers$type == "region arch"] <- 1
+types <- select(df_long_publishers, N, fed, fed_int, fed_arch, region, region_arch)
 types <- aggregate(. ~ N, types, sum)
 df <- merge(df, types)
 
 # AK: good practice is to delete unnecessary objects from memory:
-rm(list = c("new4","types","allsources", "i"))
+rm(list = c("types","allsources", "i"))
 
 ### Articles from Criminal Code ####
-
-# There are some mistakes
-df$articles[18] <- "300003; 1590003"
-df$articles[19] <- "300003; 1590003"
 
 df$articles <- gsub(',', ';', df$articles)
 df_long_articles <- unnest(df, articles = strsplit(articles, ";"))
 df_long_articles$articles <- gsub('\n| ', '', df_long_articles$articles)
-df_long_articles$articles_short <- substr(df_long_articles$articles, 0, 3)
+df_long_articles$articles_short <- substr(df_long_articles$articles, 1,nchar(df_long_articles$articles)-4)
 
 # Export data
-save(df_long_articles, df, publishers, file = "data/data_clean.RData")
+save(df_long_articles, df, publishers, df_long_publishers, file = "data/data_clean.RData")
 #write.csv2(df, "data/data_clean.csv", row.names = F)

@@ -20,7 +20,7 @@ table_n <- captioner(prefix = "Таблица")
 plot_n <- captioner(prefix = "Рисунок")
 
 # Load data
-load("../data/drugcrimes.RData")
+load("../data/data_clean.RData")
 
 ```
 
@@ -104,11 +104,127 @@ ggplot(df, aes(x = yday_publication_first))+
 
 - суть преступлений (что такое наркопреступность в сми?): статьи, изъятые наркотики (какие чаще, какие вместе, какие массы?), описания типовых ситуаций
 
+#####`r table_n("2", "Самые частые статьи УК")`
+```{r}
+articles <- as.data.frame(table(df_long_articles$articles_short))
+articles <- arrange(articles, desc(Freq))
+articles <- transform(articles,percentage_column=Freq/nrow(df)*100)
+articles <- articles[1:10,]
+ 
+names(articles) <- c("Статья УК","Количество","%")
+
+kable(articles, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+```
+
+Процентное соотношение выражает деление количества встречаемости статьи (из 774) на количество зарегистрированных случаев (567).
+Наиболее часто встречающаяся статья -- 228 -- отражает уровень вовлеченности полицейских в оборот наркотиков. Наркопреступость полицейских выражается фиксируется также уголовными делами по статьям 286 (превышение должностных полномочий) и 290 (взятки). Следующая по частоте встречаемости в выборке статья -- 159 -- мошенничество, то есть фальсификация доказательств/уголовных дел.  Однако, распределение по краткому номеру статьи не учитывает значимые различия в содержании преступлений, которые могут скрываться в частях (например, между хранением наркотиков и сбытом -- 228 и 228.1).
+
+#####`r table_n("3", "Самые частые наркотики")`
+```{r}
+drugs_1 <- as.data.frame(df$drugs_seized_1)
+drugs_2 <- as.data.frame(df$drugs_seized_2)
+colnames(drugs_1)[1] <- "drugs"
+colnames(drugs_2)[1] <- "drugs"
+drugs_both <- rbind(drugs_1,drugs_2)
+rm(list = c("drugs_1","drugs_2"))
+drugs_both <- group_by(drugs_both,drugs)
+drugs_both <- drugs_both[with(drugs_both,ave(seq_along(drugs), drugs, FUN=length))> 1,]
+drugs_both <- as.data.frame(table(drugs_both))
+drugs_both <- filter(drugs_both, Freq > 0)
+drugs_both <- arrange(drugs_both,desc(Freq))
+drugs_both <- transform(drugs_both,percentage_column=(Freq/(nrow(df)))*100)
+ 
+names(drugs_both) <- c("Наркотик","Количество","%")
+
+kable(drugs_both, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+```
+Процентное соотношение выражает деление количества встречаемости наркотика (из 1134, без третьего изъятого наркотика) на количество зарегистрированных преступников (567).
+Наибольшая встречамость в выборке получилась у каннабиноидов. Сразу за ними идет героин. В три раза реже встречается амфетамин. Еще реже -- курительные смеси, синтетические вещества, метадон и метамфетамин.
+
+#####`r table_n("4", "Вес изымаемых наркотиков")`
+```{r}
+drugs_weight_1 <- as.data.frame(cbind(df$drugs_seized_1,df$drugs_seized_weight_1))
+drugs_weight_2 <- as.data.frame(cbind(df$drugs_seized_2,df$drugs_seized_weight_2))
+drugs_weight_both <- rbind(drugs_weight_1, drugs_weight_2)
+rm(list = c("drugs_weight_1","drugs_weight_2"))
+drugs_weight_both <- na.omit(drugs_weight_both)
+drugs_weight_both$V2 <- as.numeric(format(drugs_weight_both$V2,decimal.mark="."))
+drugs_weight_both <- arrange(drugs_weight_both,desc(V2))
+drugs_weight_both <- unique(drugs_weight_both)
+drugs_weight_both <- drugs_weight_both[1:10,]
+ 
+names(drugs_weight_both) <- c("Наркотик", "Вес (в граммах)")
+
+kable(drugs_weight_both, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+```
+
+Самый большой вес изъятых наркотиков среди попавших в нашу выборку случаев -- это изъятие 171 кг каннабиноидов. Также в выборку попало изъятие 48 кг мака, 36 кг героина и 14 кг амфетамина. 
+
+#####`r plot_n("2", "Распределение веса изъятых наркотиков")`
+```{r}
+drugs_weight_1 <- as.data.frame(cbind(df$drugs_seized_1,df$drugs_seized_weight_1))
+drugs_weight_2 <- as.data.frame(cbind(df$drugs_seized_2,df$drugs_seized_weight_2))
+drugs_weight_both <- rbind(drugs_weight_1, drugs_weight_2)
+rm(list = c("drugs_weight_1","drugs_weight_2"))
+drugs_weight_both <- na.omit(drugs_weight_both)
+drugs_weight_both$V2 <- as.numeric(format(drugs_weight_both$V2,decimal.mark="."))
+ggplot(drugs_weight_both, aes(x=as.factor(drugs_weight_both$V1), y=drugs_weight_both$V2))+geom_boxplot()+theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  labs(x = "Наркотик", y = "Вес в граммах")
+```
+
+Количество случаев, где известен вес наркотика, еще меньше, чем тех, где известно, какой наркотик был изъят. В половине случаев вес изъятого наркотика не превышает килограма. В разной степени крупные партии встречаются только у героина, каннабиноидов, мака и амфетамина.
+
+#####`r table_n("5", "Изымаемые вместе наркотики")`
+```{r}
+drugs_drugs <- dplyr::group_by(df, drugs_seized_1, drugs_seized_2) %>% dplyr::summarize(n = n())
+drugs_drugs = na.omit(drugs_drugs)
+drugs_drugs <- arrange(drugs_drugs, desc(n))
+drugs_drugs <- drugs_drugs[1:10,]
+
+names(drugs_drugs) <- c("Первый наркотик", "Второй наркотик", "Количество")
+
+kable(drugs_drugs, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+```
+
+В выборку попало 6 случаев одновремнного изъятия каннабиноидов и героина, 4 случая совместной встречаемости курительных смесей и веществ растительного происхождения, по 3 раза вместе изъяли героин и метадон, каннабиноиды и амфетамин.
+
 ## Описание преступников
 
 - какие ведомства? какие должности? Как наказывают?
 
 - здесь делать таблицы сопряженности. связь между: ведомствами и наркотиками, ведомствами и наказаниями, ведомствами и регионами, ведомствами (где работал преступник) и ведомствами (которое поймало преступника). ведомствами и статьями! статьями и наркотиками. 
+
+#####`r table_n("6", "Должности и наркотики")`
+```{r}
+drugs_position <- as.data.frame(table(df$position,df$drugs_seized_1))
+drugs_position <- arrange(drugs_position,desc(Freq))
+drugs_position <- filter(drugs_position, Freq > 0)
+drugs_position <- transform(drugs_position,percentage_column=(Freq/nrow(df))*100)
+drugs_position <- drugs_position[1:10,]
+ 
+names(drugs_position) <- c("Должность", "Наркотик", "Количество", "%")
+
+kable(drugs_position, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+```
+
+Среди попавших в выборку преступников 12 начальников, 8 оперуполномоченных и 6 старших оперуполномоченных, у которых изъяли героин; 10 оперуполномоченных, 6 начальников и 5 старших оперуполномоченных, у которых изъяли каннабиноиды.
+
+#####`r table_n("7", "Наркотики и статьи УК")`
+```{r}
+drugs_articles <- as.data.frame(cbind(df_long_articles$drugs_seized_1,df_long_articles$articles_short))
+drugs_articles <- na.omit(drugs_articles)
+drugs_articles <- as.data.frame(table(drugs_articles$V1,drugs_articles$V2))
+drugs_articles <- arrange(drugs_articles,desc(Freq))
+drugs_articles <- filter(drugs_articles, Freq > 0)
+drugs_articles <- transform(drugs_articles,percentage_column=(Freq/nrow(df_long_articles))*100)
+drugs_articles <- drugs_articles[1:10,]
+ 
+names(drugs_articles) <- c("Наркотик", "Статья УК", "Количество", "%")
+
+kable(drugs_articles, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+```
+
+Среди попавших в нашу выборку сообщений в СМИ 33 случая заведения уголовного дела по статье 228 на полицейского, у которого изъяли каннабиноиды, 15 случаев по той же статье в связи с изъятием героина, столько же по статье 286 с изъятием каннабиноидов, а с героином 11.
 
 ## Статистическая модель
 
