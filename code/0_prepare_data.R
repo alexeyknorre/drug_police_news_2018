@@ -151,6 +151,8 @@ df$is_detention[str_detect(df$sanction, "страж|задер|арест")] <- 
 df_long_publishers <- unnest(df, publisher = strsplit(publisher, ";"))
 
 df_long_publishers$publisher <- tolower(df_long_publishers$publisher)
+df_long_publishers$agency_geo_city <- tolower(df_long_publishers$agency_geo_city)
+df_long_publishers$agency_geo_region <- tolower(df_long_publishers$agency_geo_region)
 df_long_publishers$publisher <- gsub(' (pdf-версия)', '', df_long_publishers$publisher, fixed = TRUE)
 df_long_publishers$publisher <- gsub('(московский выпуск, pdf)', '(Москва)', df_long_publishers$publisher, fixed = TRUE)
 df_long_publishers$publisher <- gsub('риа "росбизнесконсалтинг" казань и татарстан', 'рбк. татарстан (rt.rbc.ru)', df_long_publishers$publisher, fixed = TRUE) 
@@ -161,6 +163,15 @@ df_long_publishers$publisher <- gsub('вечерка (томск)', 'вечер�
 df_long_publishers$publisher <- gsub('московский комсомолец', 'мк', df_long_publishers$publisher, fixed = TRUE) 
 df_long_publishers$publisher <- gsub('коммерсант', 'коммерсантъ', df_long_publishers$publisher, fixed = TRUE) 
 df_long_publishers$publisher <- gsub('rbc news', 'рбк. rbc news', df_long_publishers$publisher, fixed = TRUE) 
+df_long_publishers$publisher <- gsub('"', '', df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub('<', '', df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub('>', '', df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub("г.", "", df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub("(", "", df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub(")", "", df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub(".", "", df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub("ъъ", "ъ", df_long_publishers$publisher, fixed = TRUE)
+df_long_publishers$publisher <- gsub("-", " ", df_long_publishers$publisher, fixed = TRUE)
 
 
 allsources <- read_delim("data/allsources.csv", 
@@ -170,6 +181,14 @@ allsources$name <- gsub(" (pdf-версия)", "", allsources$name, fixed = TRUE
 allsources$name <- gsub(" (pdf версия)", "", allsources$name, fixed = TRUE)
 allsources$name <- gsub(" (архив)", "", allsources$name, fixed = TRUE)
 allsources$name <- gsub(" архив", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(" текст", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(" приложения", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub("г.", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub("(", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(")", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub(".", "", allsources$name, fixed = TRUE)
+allsources$name <- gsub("-", " ", allsources$name, fixed = TRUE)
+
 df_long_publishers$type <- NA
 
 # AK: avoid using numbers as endpoints in cycles. It's better with nrow/length -- so you code will be more reusable and clear.
@@ -177,25 +196,27 @@ df_long_publishers$type <- NA
 for(i in 1:nrow(allsources)){
   df_long_publishers$type[str_detect(df_long_publishers$publisher,allsources$name[i])] <- allsources$type[i]
 }
-
-
-# AK: what are 'fed arch', 'fed', 'fed int' and so on? Again, in future write it here, in comments.
+rm(i)
+for(i in 1:nrow(df_long_publishers)){
+  df_long_publishers$type[str_detect(df_long_publishers$publisher,df_long_publishers$agency_geo_city[i])] <- "region"
+}
+rm(i)
+for(i in 1:nrow(df_long_publishers)){
+  df_long_publishers$type[str_detect(df_long_publishers$publisher,df_long_publishers$agency_geo_region[i])] <- "region"
+}
+rm(i)
 
 # There are 6 types of media: federal print ("fed"), regional print ("region"), federal Internet ("fed int"), regional Internet ("region int"), federal archive ("fed arch") and regional archive ("region arch").
 # Archive types refer to the media that is no longer publishing.
 
-df_long_publishers$type[is.na(df_long_publishers$type)] <- "region"
-df_long_publishers$type[df_long_publishers$publisher == " северо-запад (санкт-петербург)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "северо-запад (санкт-петербург)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "комсомолец каспия (астрахань)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "красный север (салехард)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "невское время (санкт-петербург)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "наше время (ростов-на-дону)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "центр (ижевск)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "новгород (великий новгород)"] <- "region arch"
-df_long_publishers$type[df_long_publishers$publisher == "\"своими именами\""] <- "fed arch"
-df_long_publishers$type[df_long_publishers$publisher == "моё! online воронеж (moe-online.ru)"] <- "region int"
-df_long_publishers$type[df_long_publishers$publisher == "интер (волгоград) (inter-volgograd.ru)"] <- "region int"
+df_long_publishers$type[df_long_publishers$publisher == " северо запад санкт петербург"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "своими именами"] <- "fed arch"
+df_long_publishers$type[df_long_publishers$publisher == "северо запад санкт петербург"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == " экстра реклама чита"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "аиф   дон"] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == "аиф на оби"] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == "невское время"] <- "region arch"
+df_long_publishers$type[df_long_publishers$publisher == "советская россия"] <- "fed"
 
 df_long_publishers$fed_arch <- 0
 df_long_publishers$fed <- 0
