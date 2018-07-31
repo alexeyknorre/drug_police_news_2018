@@ -147,7 +147,6 @@ df$is_detention[str_detect(df$sanction, "страж|задер|арест")] <- 
 
 ### Type of media ###
 
-# AK: please, avoid naming objects like 'new4'. Name should be semantically useful -- like 'df_long_publishers'.
 df_long_publishers <- unnest(df, publisher = strsplit(publisher, ";"))
 
 df_long_publishers$publisher <- tolower(df_long_publishers$publisher)
@@ -191,8 +190,6 @@ allsources$name <- gsub("-", " ", allsources$name, fixed = TRUE)
 
 df_long_publishers$type <- NA
 
-# AK: avoid using numbers as endpoints in cycles. It's better with nrow/length -- so you code will be more reusable and clear.
-#for(i in 1:3514){
 for(i in 1:nrow(allsources)){
   df_long_publishers$type[str_detect(df_long_publishers$publisher,allsources$name[i])] <- allsources$type[i]
 }
@@ -204,7 +201,8 @@ rm(i)
 for(i in 1:nrow(df_long_publishers)){
   df_long_publishers$type[str_detect(df_long_publishers$publisher,df_long_publishers$agency_geo_region[i])] <- "region"
 }
-rm(i)
+
+df_long_publishers$type[str_detect(df_long_publishers$publisher,"ru")] <- "region int"
 
 # There are 6 types of media: federal print ("fed"), regional print ("region"), federal Internet ("fed int"), regional Internet ("region int"), federal archive ("fed arch") and regional archive ("region arch").
 # Archive types refer to the media that is no longer publishing.
@@ -217,6 +215,12 @@ df_long_publishers$type[df_long_publishers$publisher == "аиф   дон"] <- "r
 df_long_publishers$type[df_long_publishers$publisher == "аиф на оби"] <- "region"
 df_long_publishers$type[df_long_publishers$publisher == "невское время"] <- "region arch"
 df_long_publishers$type[df_long_publishers$publisher == "советская россия"] <- "fed"
+df_long_publishers$type[df_long_publishers$publisher == "российская газета"] <- "fed"
+df_long_publishers$type[df_long_publishers$publisher == "кабардино балкарская правда"] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == "российская газета неделя волга урал"] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == "столица плюс грозный"] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == "новая новгородская газета"] <- "region"
+df_long_publishers$type[df_long_publishers$publisher == "комсомольская правда mskkpru"] <- "fed int"
 
 df_long_publishers$fed_arch <- 0
 df_long_publishers$fed <- 0
