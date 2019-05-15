@@ -246,6 +246,190 @@ df_long_articles <- unnest(df, articles = strsplit(articles, ";"))
 df_long_articles$articles <- gsub('\n| ', '', df_long_articles$articles)
 df_long_articles$articles_short <- substr(df_long_articles$articles, 1,nchar(df_long_articles$articles)-4)
 
+
+### Correcting more coding mistakes
+
+df$other_crimes[is.na(df$other_crimes)] <- 0
+df$is_detention[is.na(df$is_detention)] <- 0
+df$is_trial[is.na(df$is_trial)] <- 0
+l <- c(279,253,255,256,263,403, 404, 525:527)
+for(i in 1:length(l)){
+  df$is_detention[l[i]] <- 1
+  df$is_trial[l[i]] <- 1
+}
+df$is_trial[527] <- 0
+
+for(i in 1:nrow(df)){
+  if(is.na(df$sanction[i]) == TRUE){
+    if(df$is_detention[i] == 1){
+      df$sanction <- "задержан"
+    }else{
+      print(i)
+    }
+  }
+}
+for(i in 1:nrow(df)){
+  if(df$sanction[i] == "задержан"){
+    df$is_detention <- 1
+  }else{
+    print(i)
+  }
+}
+rm(list = c("l","i"))
+
+#### function for deleting NAs of exact columns in dataframe
+completeFun <- function(data, desiredCols){
+  completeVec <- complete.cases(data[,desiredCols])
+  return(data[completeVec,])
+}
+
+df$position[403] <- "участковый"
+df$position[404] <- "участковый"
+df$position <- gsub("заеститель","заместитель", df$position)
+
+df$agency_crime[422] <- "МВД"
+for(i in 17:19){
+  df$agency_geo_region[i] <- "Москва"
+}
+rm(i)
+
+df$summary_crime[521] <- "сбыт контрабанда"
+df$summary_crime[526] <- "мошенничество транспортировка приобретение"
+df$summary_crime[527] <- "мошенничество транспортировка приобретение"
+
+### Creating dataframe with information about agencies
+
+catcher_long <- select(df, N, agency_crime, agency_catcher)
+catcher_long$agency_catcher <- gsub("[[:punct:]]"," ", catcher_long$agency_catcher)
+library(tidytext)
+catcher_long <- catcher_long %>%
+  unnest_tokens(word, agency_catcher) # делим текст на токены
+catcher_long <- dplyr::filter(catcher_long, word != "усб" & word != "гу" & word != "орч" & word != "сб" & word != "сбу" & word != "ур" & word != "гибдд" & word != "дпс" & word != "осб" & word != "cб" & word != "обнон")
+catcher_long$word <- gsub("омон","мвд", catcher_long$word)
+colnames(catcher_long)[3] <- "agency_catcher"
+
+df1 <- select(df, N, is_same_agency_catcher)
+df1 = df1 %>% filter(N %in% catcher_long$N)
+df1 <- merge(df1, catcher_long)
+df1$agency_crime <- tolower(df1$agency_crime)
+df1 <- filter(df1, agency_crime == agency_catcher)
+l <- df1$N
+for(i in 1:length(l)){
+  df$is_same_agency_catcher[df$N == l[i]] <- 1
+}
+rm(list = "i", "l", "df1")
+
+### Creating dataframe with coded crime categories
+
+crime_long <- dplyr::select(df, N, summary_crime)
+
+crime_long$summary_crime <- tolower(crime_long$summary_crime)
+crime_long$summary_crime <- gsub("[[:punct:]]"," ", crime_long$summary_crime)
+
+library(tidytext)
+crime_long <- crime_long %>%
+  unnest_tokens(word, summary_crime) # делим текст на токены
+
+library(qdap)
+crime_long$word <- Trim(clean(crime_long$word)) # удаляем лишние пробелы
+for(i in 1:length(crime_long)){ 
+  crime_long$crime[str_detect(crime_long$word, "подброс|подкид|подбрас")] <- 1 
+  crime_long$crime[str_detect(crime_long$word, "вымогат|взят|деньг|денеж|угрож|угроз")] <- 2 
+  crime_long$crime[str_detect(crime_long$word, "вещдок|веществен")] <- 3 
+  crime_long$crime[str_detect(crime_long$word, "подлог|подстав|фальсиф|показат|фабр|мошен|результат|признан")] <- 4 
+  crime_long$crime[str_detect(crime_long$word, "пронес|пронос|СИЗО|заключ|колон")] <- 5 
+  crime_long$crime[str_detect(crime_long$word, "транспорт|контраб|перевоз|распр|покуп|приобр|хран|личного|опьян|торговл|сбыт|оборот|продаж")] <- 6 
+  crime_long$crime[str_detect(crime_long$word, "крыш|покров")] <- 7 
+} 
+crime_long <- completeFun(crime_long, 3)
+crime_long <- crime_long[,-2]
+crime_long <- unique(crime_long)
+
+### Creating dataframe with coded position categories
+
+position_long <- select(df, N, position)
+for(i in 1:length(position_long)){ 
+  position_long$positions[str_detect(position_long$position, "участк|дежурн|стаж|води|полиц")] <- 1 
+  position_long$positions[str_detect(position_long$position, "оперу")] <- 2
+  position_long$positions[str_detect(position_long$position, "старший оперу")] <- 3
+  position_long$positions[str_detect(position_long$position, "следов|инспект")] <- 4 
+  position_long$positions[str_detect(position_long$position, "начальн|команд")] <- 5 
+}
+position_long <- position_long[,-2]
+position_long <- na.omit(position_long)
+position_long <- unique(position_long)
+
+### Creating dataframe with all seized drugs
+
+drugs_long <- dplyr::select(df, N, drugs_seized_1, drugs_seized_2, drugs_seized_3)
+drugs_long <-  drugs_long %>% 
+  dplyr::group_by(N) %>% 
+  dplyr::summarise(drugs = paste(drugs_seized_1, drugs_seized_2, drugs_seized_3, collapse =" "))
+
+drugs_long$drugs <- gsub("и еще 12 видов наркотиков","другое", drugs_long$drugs)
+drugs_long$drugs <- gsub("вещество растительного происхождения","другое", drugs_long$drugs)
+drugs_long$drugs <- gsub("синтетическое вещество","другое", drugs_long$drugs)
+drugs_long$drugs <- gsub("порошкообразное вещество","другое", drugs_long$drugs)
+drugs_long$drugs <- gsub("курительная смесь","спайсы", drugs_long$drugs)
+drugs_long$drugs <- gsub("психотропное вещество","другое", drugs_long$drugs)
+drugs_long$drugs <- gsub("миксы","спайсы", drugs_long$drugs)
+drugs_long$drugs <- gsub("афетамин","амфетамин", drugs_long$drugs)
+library(tidytext)
+drugs_long <- drugs_long %>%
+  unnest_tokens(word, drugs) # делим текст на токены
+
+library(qdap)
+drugs_long$word <- Trim(clean(drugs_long$word)) # удаляем лишние пробелы
+drugs_long <- dplyr::filter(drugs_long, word != "na")
+drugs_long <- unique(drugs_long)
+colnames(drugs_long)[2] <- "drugs"
+
+### Creating dataframe dor CHAID analysis
+
+drglng <- drugs_long
+drglng$drugs <- as.numeric(as.factor(drglng$drugs))
+crime_long1 = crime_long %>% filter(N %in% drugs_long$N)
+chaid_drugs <- merge(crime_long1, drglng)
+rm(list = "drglng", "crime_long1")
+
+#### Drug type dummies
+
+chaid_drugs$drugs <- as.factor(chaid_drugs$drugs)
+futureVariables <- levels(chaid_drugs$drugs)
+futureVariables <- purrr::map(futureVariables, function(x) {stringr::str_c("drugs", as.character(x))})
+
+futVar <- c()
+for (i in 1:length(futureVariables)){
+  futVar <- c(futVar, futureVariables[[i]])
+}
+
+for (var in 1:length(futVar)){
+  for (str in 1:nrow(chaid_drugs)){
+    chaid_drugs[str, futVar[var]] <- ifelse(as.character(stringr::str_replace_all(futVar[var], "drugs", "")) == as.character(chaid_drugs$drugs[str]), 1, 0) 
+  }
+  print(stringr::str_c("Обработалась ", var, " переменная из ", length(futVar)))
+}
+
+#### Crime type dummies
+
+chaid_drugs$crime <- as.factor(chaid_drugs$crime)
+futureVariables <- levels(chaid_drugs$crime)
+futureVariables <- purrr::map(futureVariables, function(x) {stringr::str_c("crime", as.character(x))})
+
+futVar <- c()
+for (i in 1:length(futureVariables)){
+  futVar <- c(futVar, futureVariables[[i]])
+}
+
+for (var in 1:length(futVar)){
+  for (str in 1:nrow(chaid_drugs)){
+    chaid_drugs[str, futVar[var]] <- ifelse(as.character(stringr::str_replace_all(futVar[var], "crime", "")) == as.character(chaid_drugs$crime[str]), 1, 0) 
+  }
+  print(stringr::str_c("Обработалась ", var, " переменная из ", length(futVar)))
+}
+
+rm(list = "futureVariables", "futVar", "i", "str", "var")
+
 # Export data
-save(df_long_articles, df, publishers, df_long_publishers, file = "data/data_clean.RData")
+save(df_long_articles, df, publishers, df_long_publishers, catcher_long, crime_long, position_long, drugs_long, chaid_drugs, file = "data/data_clean.RData")
 #write.csv2(df, "data/data_clean.csv", row.names = F)

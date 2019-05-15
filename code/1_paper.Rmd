@@ -11,6 +11,9 @@ library(magrittr)
 library(knitr)
 library(captioner)
 library(ggplot2)
+library(dplyr)
+library(CHAID)
+library(stargazer)
 
 
 opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
@@ -72,20 +75,11 @@ load("../data/data_clean.RData")
 
 # Результаты
 
-Примеры того, как добавлять таблицы и графики:
+### Описание метаданных
 
-#####`r table_n("1", "Здесь первая таблица")`
-```{r}
-# Здесь мы подготавливаем данные: создаём объект с частотной таблицей
-tab <- as.data.frame(table(df$season_publication_first))
-# Добавляем русскоязычные заголовки 
-names(tab) <- c("Время года","Количество новостных сообщений")
-# Эта строка выводит таблицу в читаемом формате в Ворд
-kable(tab, format.args = list(decimal.mark = ',', big.mark = " "))
-```
+По результатам 100 уникальных поисковых запросов в базу "Интегрум" было найдено 774 новостных собщения, из которых было получено 567 закодированных случаев пойманных полицейских, чьи преступления были связаны с наркотиками. 
 
-
-#####`r plot_n("1", "Здесь первая картинка")`
+#####`r plot_n("1", "Распределение новостей по временам года")`
 ```{r}
 ggplot(df, aes(x = yday_publication_first))+
   geom_histogram(bins = 52) +
@@ -94,11 +88,7 @@ ggplot(df, aes(x = yday_publication_first))+
   scale_x_continuous(name = "Сезон публикации новости", breaks = c(31,106,198,290,351), labels = c("Зима","Весна","Лето","Осень","Зима"))
 ```
 
-### Описание метаданных
-
-- сколько данных собрали?
-
-- распределение по годам, времени года, регионам, изданиям, уровню издания (федеральное/региональное и т.д.)
+Новостные сообщения о преступлениях были опубликованы в период с начала 2013 года до марта 2018 года.
 
 #####`r table_n("1", "Типы СМИ")`
 ```{r}
@@ -109,17 +99,53 @@ media_type_table <- transform(media_type_table,percentage_column=(Freq/nrow(df_l
 
 names(media_type_table) <- c("Тип медиа","Количество новостных сообщений","%")
 
-kable(media_type_table, format.args = list(decimal.mark = ',', big.mark = " "))
+knitr::kable(media_type_table, format.args = list(decimal.mark = ',', big.mark = " "))
+
+rm(media_type_table)
 ```
 
-Процентное соотношение выражает деление количества встречаемости публикации (из 662) на количество зарегистрированных случаев (567).
-Количество сообщений опубликованных региональными медиа преобладает над всеми остальными.
-Федеральных и региональных интернет публикаций примерно одинаковое количество, однако, все интернет публикации вместе составляют очень малую часть от попавших в выборку сообщений.
+
+479 сообщений опубликованных региональными медиа составляют около 72 процентов всей выборки. Новостных сообщений в федеральных актуальных и архивированных СМИ вместе около 100, что составляет 16 процентов выборки. Новостных сообщений в региональных СМИ онлайн всего 23 наблюдения, что составило около 3 процентов. Меньше всего сообщений в федеральных СМИ онлайн -- 22 наблюдения или три процента. 
+
+#####`r table_n("2", "Название СМИ")`
+```{r}
+publishers_table <- transform(publishers,percentage_column=(count/(nrow(df)))*100)
+publishers_table <- publishers_table[c(1:10),]
+
+names(publishers_table) <- c("Название СМИ","Кол-во","%")
+
+knitr::kable(publishers_table, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(publishers_table)
+```
+
+В полученных данных использовались новостные сообщения из 135 разных СМИ. 86 сообщений были опубликованы в газете "Коммерсант", что составило 15 процентов всей выборки. 35 сообщений были опубликованы в "МК" и составили 6 процентов всей выборки. По 29 сообщений было опубликовано в "РБК и "Честное слово", что составило по 5 процентов от выборки.
+
 ## Описание преступлений
 
-- суть преступлений (что такое наркопреступность в сми?): статьи, изъятые наркотики (какие чаще, какие вместе, какие массы?), описания типовых ситуаций
+В выборку попали преступления, произошедшие в 63 регионах РФ.
 
-#####`r table_n("2", "Самые частые статьи УК")`
+#####`r table_n("3", "Самые частые регионы")`
+```{r}
+region_tbl <- as.data.frame(table(df$agency_geo_region))
+region_tbl <- dplyr::arrange(region_tbl,desc(Freq))
+region_tbl <- transform(region_tbl,percentage_column=(Freq/(nrow(df)))*100)
+region_tbl <- region_tbl[c(1:10),]
+
+names(region_tbl) <- c("Регион","Кол-во","%")
+
+knitr::kable(region_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(region_tbl)
+```
+
+Самой частой региональной принадлежностью преступников, попавших в выборку, стали: Республика Татарстан, Москва, Санкт-Петербург, Новосибирская область, Кабардино-Балкарская Республика, Ленинградская область, Московская область, Нижегородская область, Алтайский край и Ростовская область.
+Наибольшее количество преступлений, попавших в выборку, произошли в Республике Татарстан. Таких случаев 49, что составляет 8 с половиной процентов. Вторым регионом по количеству преступлений, попавших в выборку, стала Москва. В выборку попал 41 преступник из Москвы, что составило около 7 процентов. 36 преступников из Санкт-Петербурга составили около 6 процентов всей выборки. Из Новосибирской области в выборку попало 30 преступлений, связанных с наркотиками, что составило приблизительно 5 процентов. 
+
+В выборку попали случаи о преступлениях, связанных с наркотиками, в связи с которыми были открыты уголовные дела по 34 уголовным статьям. В 298 наблюдениях отсутствует информация о статьях, что составляет 52 с половиной процента всей выборки.
+
+
+#####`r table_n("4", "Самые частые статьи УК")`
 ```{r}
 articles <- as.data.frame(table(df_long_articles$articles_short))
 articles <- arrange(articles, desc(Freq))
@@ -128,88 +154,70 @@ articles <- articles[1:10,]
  
 names(articles) <- c("Статья УК","Количество","%")
 
-kable(articles, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+knitr::kable(articles, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
 ```
 
-Процентное соотношение выражает деление количества встречаемости статьи (из 774) на количество зарегистрированных случаев (567).
-Наиболее часто встречающаяся статья -- 228 -- отражает уровень вовлеченности полицейских в оборот наркотиков. Наркопреступость полицейских выражается фиксируется также уголовными делами по статьям 286 (превышение должностных полномочий) и 290 (взятки). Следующая по частоте встречаемости в выборке статья -- 159 -- мошенничество, то есть фальсификация доказательств/уголовных дел.  Однако, распределение по краткому номеру статьи не учитывает значимые различия в содержании преступлений, которые могут скрываться в частях (например, между хранением наркотиков и сбытом -- 228 и 228.1).
+Чаще всего в полученных данных встречается статья 228, было получено 125 таких случаев или 22 процента всей выборки. 19 процентов выборки составляют преступления с обвинением по статье 286, таких случаев 113. Преступлений по статье 290 в наблюдениях 66 случаев и 11 с половиной процентов от выборки.
 
-#####`r table_n("3", "Самые частые наркотики")`
+В собранных данных имеется информация об изъятиях 21 вида наркотиков. В 342 случаях информация отсутствует, что составляет 60 процентов выборки.
+
+#####`r table_n("5", "Самые частые наркотики")`
 ```{r}
-drugs_1 <- as.data.frame(df$drugs_seized_1)
-drugs_2 <- as.data.frame(df$drugs_seized_2)
-colnames(drugs_1)[1] <- "drugs"
-colnames(drugs_2)[1] <- "drugs"
-drugs_both <- rbind(drugs_1,drugs_2)
-rm(list = c("drugs_1","drugs_2"))
-drugs_both <- group_by(drugs_both,drugs)
-drugs_both <- drugs_both[with(drugs_both,ave(seq_along(drugs), drugs, FUN=length))> 1,]
-drugs_both <- as.data.frame(table(drugs_both))
-drugs_both <- filter(drugs_both, Freq > 0)
-drugs_both <- arrange(drugs_both,desc(Freq))
-drugs_both <- transform(drugs_both,percentage_column=(Freq/(nrow(df)))*100)
- 
-names(drugs_both) <- c("Наркотик","Количество","%")
+drugs_tbl <- as.data.frame(table(drugs_long[,-1]))
+drugs_tbl <- dplyr::arrange(drugs_tbl,desc(Freq))
+drugs_tbl <- transform(drugs_tbl,percentage_column=(Freq/(nrow(df)))*100)
+drugs_tbl <- drugs_tbl[c(1:10),]
 
-kable(drugs_both, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+names(drugs_tbl) <- c("Наркотик", "Кол-во", "%")
+
+knitr::kable(drugs_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(drugs_tbl)
 ```
-Процентное соотношение выражает деление количества встречаемости наркотика (из 1134, без третьего изъятого наркотика) на количество зарегистрированных преступников (567).
-Наибольшая встречамость в выборке получилась у каннабиноидов. Сразу за ними идет героин. В три раза реже встречается амфетамин. Еще реже -- курительные смеси, синтетические вещества, метадон и метамфетамин.
 
-#####`r table_n("4", "Вес изымаемых наркотиков")`
+Наибольшее количество наблюдений составили преступления, в которых изъяли каннабиноиды. Таких случаев 90, что составляет около 16 процентов всей выборки. 73 случая изъятия героина составило около 13 процентов всей выборки. Амфетамин изъяли в 26 случаях, что составило 4 с половиной процента.
+
+#####`r table_n("6", "Больше одного наркотика")`
 ```{r}
-drugs_weight_1 <- as.data.frame(cbind(df$drugs_seized_1,df$drugs_seized_weight_1))
-drugs_weight_2 <- as.data.frame(cbind(df$drugs_seized_2,df$drugs_seized_weight_2))
-drugs_weight_both <- rbind(drugs_weight_1, drugs_weight_2)
-rm(list = c("drugs_weight_1","drugs_weight_2"))
-drugs_weight_both <- na.omit(drugs_weight_both)
-drugs_weight_both$V2 <- as.numeric(format(drugs_weight_both$V2,decimal.mark="."))
-drugs_weight_both <- arrange(drugs_weight_both,desc(V2))
-drugs_weight_both <- unique(drugs_weight_both)
-drugs_weight_both <- drugs_weight_both[1:10,]
- 
-names(drugs_weight_both) <- c("Наркотик", "Вес (в граммах)")
+drugs_tbl = drugs_long %>%
+    dplyr::group_by(N) %>%
+  dplyr::summarise(count=n())
+drugs_tbl = drugs_tbl %>%
+  dplyr::group_by(count) %>%
+  dplyr::summarise(count1=n())
+drugs_tbl <- dplyr::arrange(drugs_tbl,desc(count1))
+drugs_tbl <- transform(drugs_tbl,percentage_column=(count1/(nrow(df)))*100)
 
-kable(drugs_weight_both, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+names(drugs_tbl) <- c("Количество наркотиков на одно преступление", "Кол-во", "%")
+
+knitr::kable(drugs_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(list = "drugs_tbl")
 ```
 
-Самый большой вес изъятых наркотиков среди попавших в нашу выборку случаев -- это изъятие 171 кг каннабиноидов. Также в выборку попало изъятие 48 кг мака, 36 кг героина и 14 кг амфетамина. 
-
-#####`r plot_n("2", "Распределение веса изъятых наркотиков")`
-```{r}
-drugs_weight_1 <- as.data.frame(cbind(df$drugs_seized_1,df$drugs_seized_weight_1))
-drugs_weight_2 <- as.data.frame(cbind(df$drugs_seized_2,df$drugs_seized_weight_2))
-drugs_weight_both <- rbind(drugs_weight_1, drugs_weight_2)
-rm(list = c("drugs_weight_1","drugs_weight_2"))
-drugs_weight_both <- na.omit(drugs_weight_both)
-drugs_weight_both$V2 <- as.numeric(format(drugs_weight_both$V2,decimal.mark="."))
-ggplot(drugs_weight_both, aes(x=as.factor(drugs_weight_both$V1), y=drugs_weight_both$V2))+geom_boxplot()+theme(axis.text.x = element_text(angle=60, hjust=1)) +
-  labs(x = "Наркотик", y = "Вес в граммах")
-```
-
-Количество случаев, где известен вес наркотика, еще меньше, чем тех, где известно, какой наркотик был изъят. В половине случаев вес изъятого наркотика не превышает килограма. В разной степени крупные партии встречаются только у героина, каннабиноидов, мака и амфетамина.
-
-#####`r table_n("5", "Изымаемые вместе наркотики")`
-```{r}
-drugs_drugs <- dplyr::group_by(df, drugs_seized_1, drugs_seized_2) %>% dplyr::summarize(n = n())
-drugs_drugs = na.omit(drugs_drugs)
-drugs_drugs <- arrange(drugs_drugs, desc(n))
-drugs_drugs <- drugs_drugs[1:10,]
-
-names(drugs_drugs) <- c("Первый наркотик", "Второй наркотик", "Количество")
-
-kable(drugs_drugs, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
-```
-
-В выборку попало 6 случаев одновремнного изъятия каннабиноидов и героина, 4 случая совместной встречаемости курительных смесей и веществ растительного происхождения, по 3 раза вместе изъяли героин и метадон, каннабиноиды и амфетамин.
+В 21 случае у преступника изъяли 2 типа наркотиков, что составляет около 4 процентов выборки. 5 наблюдений, когда у преступника изъяли 3 наркотика, составили меньше 1 процента выборки.
 
 ## Описание преступников
 
-- какие ведомства? какие должности? Как наказывают?
+В выборку попали полицейские с 30 разными должностями. В 255 случаях в выборке отсутствуют данные о должности, которую занимал полицейский, совершивший преступление, что составляет 45 процентов.
 
-- здесь делать таблицы сопряженности. связь между: ведомствами и наркотиками, ведомствами и наказаниями, ведомствами и регионами, ведомствами (где работал преступник) и ведомствами (которое поймало преступника). ведомствами и статьями! статьями и наркотиками. 
+#####`r table_n("7", "Должности")`
+```{r}
+position_tbl <- as.data.frame(table(df$position))
+position_tbl <- dplyr::arrange(position_tbl,desc(Freq))
+position_tbl <- transform(position_tbl,percentage_column=(Freq/(nrow(df)))*100)
+position_tbl <- position_tbl[c(1:10),]
 
-#####`r table_n("6", "Должности и наркотики")`
+names(position_tbl) <- c("Должность","Кол-во","%")
+
+knitr::kable(position_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(position_tbl)
+```
+
+В 113 наблюдениях полицейский занимал должность оперуполномоченного, что составило 20 процентов всей выборки. 54 полицейских в выборке были начальниками, что составило 9 с половиной процентов. 31 старший оперуполномоченный составили 5 с половиной процентов всей выборки.
+
+#####`r table_n("8", "Должности и наркотики")`
 ```{r}
 drugs_position <- as.data.frame(table(df$position,df$drugs_seized_1))
 drugs_position <- arrange(drugs_position,desc(Freq))
@@ -219,12 +227,13 @@ drugs_position <- drugs_position[1:10,]
  
 names(drugs_position) <- c("Должность", "Наркотик", "Количество", "%")
 
-kable(drugs_position, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+kable(drugs_position, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
 ```
 
-Среди попавших в выборку преступников 12 начальников, 8 оперуполномоченных и 6 старших оперуполномоченных, у которых изъяли героин; 10 оперуполномоченных, 6 начальников и 5 старших оперуполномоченных, у которых изъяли каннабиноиды.
+Среди попавших в выборку преступников 12 начальников, 8 оперуполномоченных и 6 старших оперуполномоченных, у которых изъяли героин, что вместе составило около 5 процентов от всей выборки.
+У 10 оперуполномоченных, 6 начальников и 5 старших оперуполномоченных изъяли каннабиноиды, что вместе составило около 4 процентов от всей выборки.
 
-#####`r table_n("7", "Наркотики и статьи УК")`
+#####`r table_n("9", "Наркотики и статьи УК")`
 ```{r}
 drugs_articles <- as.data.frame(cbind(df_long_articles$drugs_seized_1,df_long_articles$articles_short))
 drugs_articles <- na.omit(drugs_articles)
@@ -236,15 +245,209 @@ drugs_articles <- drugs_articles[1:10,]
  
 names(drugs_articles) <- c("Наркотик", "Статья УК", "Количество", "%")
 
-kable(drugs_articles, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+kable(drugs_articles, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
 ```
 
-Среди попавших в нашу выборку сообщений в СМИ 33 случая заведения уголовного дела по статье 228 на полицейского, у которого изъяли каннабиноиды, 15 случаев по той же статье в связи с изъятием героина, столько же по статье 286 с изъятием каннабиноидов, а с героином 11.
+Среди попавших в нашу выборку сообщений в СМИ 33 случая заведения уголовного дела по статье 228 на полицейского, у которого изъяли каннабиноиды, что составило 4 процента от выборки. В 15 случаях изъятия героина с заведением уголовного дела по той же статье или 2 процента от выборки. Столько же случаев заведения уголовного дела по статье 286 с изъятием каннабиноидов.
+
+Преступления, информация о которых была получена в нашем исследовании, совершались сотрудниками одного из четырех ведомств: МВД, ФСКН, ФСИН и ФСБ.
+
+#####`r table_n("10", "Ведомства, где работали преступники")`
+```{r}
+agency_tbl <- as.data.frame(table(df$agency_crime))
+agency_tbl <- dplyr::arrange(agency_tbl,desc(Freq))
+agency_tbl <- transform(agency_tbl,percentage_column=(Freq/(nrow(df)))*100)
+
+names(agency_tbl) <- c("Ведомство, где работал преступник","Кол-во","%")
+
+knitr::kable(agency_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(agency_tbl)
+```
+
+В выборку попал 431 случай, когда преступник работал в МВД, что составило около 76 процентов всех наблюдений. Вторым по количеству встречаемости стало ведомство ФСКН, которому принадлежали 103 случая, что составляет 20 процентов всей выборки. Сотрудников ФСИН попало в выборку 30 человек, что составило около 6 процентов выборки. В наблюдения попало всего три случая пойманного сотрудника ФСБ. 
+
+#####`r table_n("11", "Ведомства и статьи")`
+```{r}
+art_tbl = df_long_articles %>% filter(N %in% catcher_long$N)
+art_tbl <- art_tbl[,c(1,55)]
+art_tbl <- merge(art_tbl, catcher_long)
+
+art_tbl <- xtabs(~ articles_short+agency_crime, data = art_tbl)
+art_tbl <- art_tbl[which(rowSums(art_tbl) > 20),which(colSums(art_tbl) > 20)]
+
+knitr::kable(art_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(art_tbl)
+```
+
+Наибольшее количество уголовных дел, заведенных на сотрудников МВД и ФСИН, было связано со статьей 228. Сотрудники ФСКН чаще совершали преступления по статье 290.
+
+Полицейских, совершивших преступления, связанные с наркотиками, поймало одно из шести ведомств: МВД, ФСБ, СК, ФСКН, ФСИН и прокуратура.
+
+#####`r table_n("12", "Ведомства, поймавшие преступников")`
+```{r}
+agency_tbl <- as.data.frame(table(catcher_long[,-c(1,2)]))
+agency_tbl <- dplyr::arrange(agency_tbl,desc(Freq))
+agency_tbl <- transform(agency_tbl,percentage_column=(Freq/(nrow(df)))*100)
+
+names(agency_tbl) <- c("Ведомство, поймавшее преступника","Кол-во","%")
+
+knitr::kable(agency_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1)
+
+rm(agency_tbl)
+```
+
+Самым частым в выборке стало МВД, поймавшее 153 преступника и составившее около 27 процентов выборки. 112 случаев, или 20 процентов, попавших в выборку, составили преступники, пойманные сотрудниками ФСБ. Чуть меньше преступников поймали СК – 101 человек, или почти 18 процентов выборки. ФСКН, ФСИН и прокуратура вместе составили около 13 процентов наблюдений. В 168 наблюдениях или 29 с половиной процентов выборки отсутствует информация о ведомстве, которое поймало преступника.
+
+#####`r table_n("12", "Ведомства против ведомств")`
+```{r}
+catcher_tbl <- table(catcher_long$agency_catcher,catcher_long$agency_crime)
+
+knitr::kable(catcher_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE)
+
+rm(catcher_tbl)
+```
+
+Преступников, которые работают в МВД, чаще всего ловят их коллеги. Преступления сотрудников ФСИН чаще всего фиксируют сотрудники ФСКН. Сотрудников ФСКН чаще всего ловят сотрудники ФСБ. Сотрудников ФСБ всего один раз в нашей выборке поймало ведомство ФСКН. 
+
+С целью агрегирования преступлений для дальнейших статистических тестов были выделены семь категорий. Первая категория – вовлеченность в оборот наркотиков. Эта категория включает в себя приобретение, хранение и сбыт наркотиков, а также транспортировку и контрабанду. Остальными категориями стали: вымогательство денег и взятки, подброс наркотиков, фальсификации уголовных дел, преступления, связанные с заключенными, покровительство наркоторговцам и кража вещдоков.
+
+#####`r table_n("13", "Типы преступления")`
+```{r}
+crimes_tbl <- as.data.frame(table(crime_long[,-1]))
+crimes_tbl <- dplyr::arrange(crimes_tbl,desc(Freq))
+crimes_tbl <- transform(crimes_tbl,percentage_column=(Freq/(nrow(df)))*100)
+
+names(crimes_tbl) <- c("Тип преступления", "Кол-во", "%")
+
+rownames(crimes_tbl) <- c("Вовлеченность в оборот наркотиков", "Вымогательство денег и взятки", "Подброс наркотиков","Фальсификация угловного дела", "Преступление связанное с заключенными", "Покровительство", "Кража вещдоков")
+knitr::kable(crimes_tbl[,-1], format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1, aling = "l")
+
+rm(crimes_tbl)
+```
+
+Самым частым преступлением в выборке стала вовлеченность в оборот наркотиков. Таких случаев было собрано 222, что составило 39 процентов выборки. Вторым преступлением по количеству наблюдений стало вымогательство денег и взятки. В выборку попало 214 таких случаев или около 38 процентов всех наблюдений. Подброс наркотиков встретился в выборке 137 раз и составил около 24 процентов всех наблюдений. В выборку попало 129 случаев фальсификаций уголовного дела, что составляет около 23 процента выборки.
+
+#####`r table_n("13", "Более одного преступления")`
+```{r}
+crimes_tbl = crime_long %>%
+  group_by(N) %>%
+  summarise(count=n())
+crimes_tbl = crimes_tbl %>%
+  group_by(count) %>%
+  summarise(count1=n())
+crimes_tbl <- dplyr::arrange(crimes_tbl,desc(count1))
+crimes_tbl <- transform(crimes_tbl,percentage_column=(count1/(nrow(df)))*100)
+
+names(crimes_tbl) <- c("Кол-во преступлений на одного преступника", "Кол-во", "%")
+
+knitr::kable(crimes_tbl, format.args = list(decimal.mark = ',', big.mark = " "), booktabs = TRUE, digits = 1, aling = "l")
+
+rm(list = "crimes_tbl")
+```
+
+В 128 наблюдениях полицейский совершил два преступления, что составило 22 процента выборки. В 29 случаях преступник совершил 3 преступления, что составило всего 5 процентов выборки. 
 
 ## Статистическая модель
 
-Хорошо бы добавить, но сначала давайте сделаем описательные вещи и скелет статьи
+### Дерево решений CHAID
 
+Для категории преступлений с наибольшим количеством наблюдений (140) мы провели статистический анализ методом построения деревьев решений CHAID (Chi square automatic interaction detection).
+
+#####`r plot_n("2", "Дерево решений")`
+```{r}
+chaid_drugs <- chaid_drugs[,-c(1:3)]
+for(i in 1:length(chaid_drugs)){
+  chaid_drugs[,i] <- as.factor(chaid_drugs[,i])
+}
+#install.packages("partykit")
+#install.packages("CHAID", repos="http://R-Forge.R-project.org")
+
+chaid_drugs1 <- chaid_drugs[,-c(22:27,29)] 
+chaidattrit1 <- chaid(crime6 ~ ., data = chaid_drugs1) 
+#print(chaidattrit1) 
+plot(chaidattrit1) 
+#chisq.test(chaid_drugs1$crime6, chaid_drugs1$drugs5) #<0.001
+#chisq.test(chaid_drugs1$crime6, chaid_drugs1$drugs7) #<0.005
+#chisq.test(chaid_drugs1$crime6, chaid_drugs1$drugs18) #<0.01
+#chisq.test(chaid_drugs1$crime6, chaid_drugs1$drugs2) #<0.05
+#pmodel1 <- predict(chaidattrit1) 
+#caret::confusionMatrix(pmodel1, chaid_drugs1$crime6) #p<0.001
+```
+
+Корневым узлом в дереве выступает героин (drugs5), что означает, что он оказывает наибольшее влияние на прогнозирование того, является ли совершенное преступление связанным с вовлеченностью в оборот наркотиков. Другими значимыми предикторами вовлеченности преступника в оборот наркотиков стали наркотики (drugs7), о которых в новостных сообщениях пишут в абстрактных категориях (напр.: «порошкообразное вещество»). Другим значимым предиктором стали спайсы (drugs18). Последний важный узел -- амфетамин (drugs2).
+
+#####`r plot_n("3", "AUC")`
+```{r}
+library(pROC)
+pred = predict(chaidattrit1)
+ROCfull = roc(response = as.numeric(chaid_drugs1$crime6), predictor = as.numeric(pred))
+auc(ROCfull) #0.607
+
+rm(list = "chaid_drugs1", "chaidattrit1", "pmodel1", "pred", "ROCfull")
+```
+
+Показатель качества модели, AUC (area under the curve), не очень высокий – 0.608. 
+
+### Логистическая регрессия
+
+Для проверки гипотез о связи санкций с характеристиками преступлений мы использовали логистическую регрессию. Зависимой переменной в регрессии является информация о том, сообщалось ли в новости о суде над преступником. В качестве независимых переменных были взяты три переменные: был ли преступник пойман своим ведомством, какую должность он занимал и к какой категории относится совершенное преступление. Из категорий преступлений были удалены кражи вещдоков из-за недостаточного количества наблюдений. 
+
+#####`r plot_n("4", "Регрессионный анализ")`
+```{r}
+catcher_long1 = catcher_long %>% filter(N %in% position_long$N)
+catcher_long1 <- filter(catcher_long1, agency_catcher != "прокуратура")
+crime_long1 = crime_long %>% filter(N %in% position_long$N)
+crime_long1  <- filter(crime_long1, crime != 3)
+
+trial_catch <- dplyr::select(df, N, is_trial, is_same_agency_catcher)
+trial_catch$is_same_agency_catcher[is.na(trial_catch$is_same_agency_catcher)] <- 0
+trial_catch = trial_catch %>% filter(N %in% position_long$N)
+
+trial_glm <- merge(position_long, catcher_long1)
+trial_glm <- merge(trial_glm, crime_long1)
+trial_glm <- merge(trial_glm, trial_catch)
+
+rm(list = "trial_catch", "crime_long1", "catcher_long1")
+
+trial_glm <- unique(trial_glm)
+
+for(i in 2:length(trial_glm)){
+  trial_glm[,i] <- as.factor(trial_glm[,i])
+}
+
+mylogit <- glm(is_trial ~ is_same_agency_catcher+positions+crime, data = trial_glm, family = "binomial")
+
+#summary(mylogit)
+stargazer(mylogit, type = "text", 
+          covariate.labels = c("Пойман своим ведомством","Оперуполномоченный","Старший оперуполномоченный","Следователь или инспектор","Начальник или командир","Вымогательство денег и взятки","Фальсификация уголовного дела","Преступление связанное с заключенными","Вовлеченность в оборот наркотиков","Покровительство"),
+          dep.var.labels = "Дело дошло до суда")
+
+#car::outlierTest(mylogit)
+
+#car::vif(mylogit)
+
+#library(rcompanion)
+#nagelkerke(mylogit)
+
+#exp(cbind(OR = coef(mylogit), confint(mylogit)))
+#tableone::ShowRegTable(mylogit)
+```
+
+Наиболее значимым предиктором того, будет ли в новостном сообщении информация о суде над преступником, является информация о том, был ли преступник пойман своим ведомством. Шансы того, что в новостном сообщении будет информация о суде над преступником понижаются на 67%, если преступник был пойман своим ведомством.
+Менее значимыми предикторами являются две категории преступлений: вымогательство денег и взятки, и преступления связанные с заключенными. Если преступлением были вымогательство денег и взятки, то шансы увеличиваются более чем в два раза. Если преступление было связанно с заключенными, то шансы увеличиваются в четыре раза.
+Предиктором с меньшей значимостью стала занимаемая должность инспектора или следователя, что уменьшает шансы на 68%.
+
+#####`r plot_n("5", "AUC")`
+```{r}
+library(pROC)
+pred = predict(mylogit, newdata=trial_glm, type="response")
+ROCfull = roc(response = as.numeric(trial_glm$is_trial), predictor = as.numeric(pred))
+auc(ROCfull)#0.68
+```
+
+Показатель качества логистической регрессии выше, чем у дерева решений -- 0.68.
 
 # Заключение
 
